@@ -1,66 +1,6 @@
 import assembler
-
-def register_file_generator() -> dict[str, int]:
-    return {
-        "00000": 0x00000000,
-        "00001": 0x00000000,
-        "00010": 0x7fffeffc,
-        "00011": 0x10008000,
-        "00100": 0x00000000,
-        "00101": 0x10010000,
-        "00110": 0x00000004,
-        "00111": 0x00000000,
-        "01000": 0x00000006,
-        "01001": 0x00000001,
-        "01010": 0x00000000,
-        "01011": 0x00000000,
-        "01100": 0x00000000,
-        "01101": 0x00000000,
-        "01110": 0x00000000,
-        "01111": 0x00000000,
-        "10000": 0x00000000,
-        "10001": 0x00000000,
-        "10010": 0x00000000,
-        "10011": 0x00000000,
-        "10100": 0x00000000,
-        "10101": 0x00000000,
-        "10110": 0x00000000,
-        "10111": 0x00000000,
-        "11000": 0x00000000,
-        "11001": 0x00000000,
-        "11010": 0x00000000,
-        "11011": 0x00000000,
-        "11100": 0x00000000,
-        "11101": 0x00000000,
-        "11110": 0x00000000,
-        "11111": 0x00000000
-    }
-
-
-def memory_text_allocation() -> dict[int, str]:
-    """
-    Populates the text memory, respresented as a dict, with the address and the instruction
-    """
-    ret_memory = {}
-    with open("machine_code.txt", "r") as machine_code:
-        current_address = 0x00400000
-        for instruction in machine_code:
-            ret_memory[current_address] = instruction.strip("\n")
-            current_address += 4
-    return ret_memory
-
-
-def memory_data_allocation(memory:dict[int, str]) -> dict:
-    """
-    Populates the data memory, respresented as a dict, with the address and the value
-    """
-    ret_memory = memory
-    current_address = 0x10010000
-    for _ in range(256): # 1024byte / 1Mb memory
-        ret_memory[current_address] = 0x00000000
-        current_address += 4
-    return ret_memory
-
+import display
+import mem_regs
 
 def control_unit(opcode:str) -> tuple[str, ...]:
     """
@@ -112,16 +52,19 @@ def pc_adder(pc:int) -> int:
     return pc + 4
 
 
-def instruction_memory(pc:int, memory:dict) -> str:
+
+def instruction_memory(pc:int, memory:dict[int, int]) -> int:
     """
     Gets the instruction which corresponds to the current PC address
     """
-    return memory[pc]
+    instruction = memory[pc]
+    instruction = f"{instruction:032b}"
+    return instruction
 
 
 def imm_gen(instruction:str, opcode:str) -> str:
     """
-    Generates the immediate based on the instruction    
+    Generates the 32-bit immediate based on the instruction    
     """
     if opcode == "0000011": # I-type
         imm = instruction[:12]
@@ -186,7 +129,7 @@ def ALU_control(funct7:str, funct3:str, ALUOp:str) -> str:
                 return "subtract"
         
 
-def registers(rs1:str, rs2:str, rd:str, write_data:None, RegWrite:str, register_file:dict[str, int]):
+def registers(rs1: int, rs2: int, rd: int, write_data: None, RegWrite: str, register_file: list[int]):
     read_data_1 = register_file[rs1]
     read_data_2 = register_file[rs2]
     if RegWrite == "1" and write_data != None:
@@ -218,7 +161,7 @@ def ALU(op:str, read_data_1:int, second_op:int) -> tuple[int, str]:
         if op == "and":
             for index, bit in enumerate(read_data_1_bin):
                 res += AND(bit, read_data_2_bin[index])
-        else:
+        else: # or
             for index, bit in enumerate(read_data_1_bin):
                 res += OR(bit, read_data_2_bin[index])
         ALU_result = twos_complement_reader(res)
@@ -242,7 +185,7 @@ def OR(x:str, y:str) -> str:
     return "0"
 
 
-def data_memory(address:int, write_data:int, MemWrite:str, MemRead:str, memory: dict) -> None | int:
+def data_memory(address:int, write_data:int, MemWrite:str, MemRead:str, memory: dict[int, int]) -> None | int:
     if MemRead == "1":
         read_data = memory[address]
     else:
@@ -275,120 +218,19 @@ def PCSrc_MUX(res_pc_adder:int, res_branch_adder:int, Branch:str, Zero:str) -> i
         return res_branch_adder
 
 
-def display_register_file_pre(register_file:dict[str, int]):
-    """
-    Displays register file before execution
-    """
-    # Header
-    print("-" * 26)
-    print("Register Name   Values")
-
-    for register_bin, value in register_file.items():
-        # Converts the binary string into a decimal string, ex "01000" -> 8
-        register_decimal = str(int(register_bin, 2))
-
-        # Creates the name of the register, ex: x8
-        register_name = "x" + register_decimal
-
-        # Format string -> align the register name to the left and display registers as hexadecimal 
-
-        print(f"{register_name:<4}\t\t{value:#010x}")
-    
-    print()
-
-
-def display_memory_pre(memory:dict):
-    """
-    Displays memory before execution
-    """
-
-    # Header
-    print("-" * 49)
-    print("Memory address   Values")
-
-    for address, value in memory.items():
-
-        if type(value) is str:
-            print(f"{address:#010x}\t {value}")
-
-        else:
-            print(f"{address:#010x}\t {value:#010x}")
-    
-    print()
-
-
-def display_register_file_post(start_register_file:dict[str, int], register_file:dict[str, int]):
-    """
-    Displays register after before execution
-    """
-    # Header
-    print("-" * 26)
-    print("Register Name   Values")
-
-    for register_bin, value in register_file.items():
-        # Converts the binary string into a decimal string, ex "01000" -> 8
-        register_decimal = str(int(register_bin, 2))
-
-        # Creates the name of the register, ex: x8
-        register_name = "x" + register_decimal
-
-        # Format string -> align the register name to the left and display registers as hexadecimal 
-
-        if value == start_register_file[register_bin]:
-            print(f"{register_name:<4}\t\t{value:#010x}")
-        else:
-            print(f"{'\033[33m'}{register_name:<4}{'\033[0m'}\t\t{'\033[33m'}{value:#010x}{'\033[0m'}")  
-
-    
-    print()
-
-
-def display_memory_post(start_memory:dict, memory:dict):
-    """
-    Displays memory after execution
-    """
-
-    # Header
-    print("-" * 49)
-    print("Memory address   Values")
-
-    for address, value in memory.items():
-
-        if type(value) is str:
-            if value == start_memory[address]:
-                print(f"{address:#010x}\t {value}")
-            else:
-                print(f"{'\033[33m'}{address:#010x}{'\033[0m'}\t {'\033[33m'}{value}{'\033[0m'}")
-
-        else:
-            if value == start_memory[address]:
-                print(f"{address:#010x}\t {value}")
-            else:
-                print(f"{'\033[33m'}{address:#010x}{'\033[0m'}\t {'\033[33m'}{value:#010x}{'\033[0m'}")
-    
-    print()
-
-
 def main():
     pc = assembler.main()
-    # Instruction memory
-    memory = memory_text_allocation()
-    memory = memory_data_allocation(memory)
+    register_file, memory = mem_regs.init()
 
-
-    register_file = register_file_generator()
-
-    start_register_file = register_file.copy()
-
+    # To show the differences before and after the execution of the RISC-V instructions
+    start_register_file = register_file.copy() 
     start_memory = memory.copy()
 
     print("Initial Register File")
-    display_register_file_pre(register_file)
+    display.register_file_pre(register_file)
 
     print("Initial Memory")
-    display_memory_pre(memory)
-
-    #display_memory
+    display.memory_pre(memory)
 
     while pc in memory.keys():
         #pc adder
@@ -401,9 +243,9 @@ def main():
         opcode = instruction[25:]
         funct7 = instruction[:7]
         funct3 = instruction[17:20]
-        rs1 = instruction[12:17]
-        rs2 = instruction[7:12]
-        rd = instruction[20:25]
+        rs1 = int(instruction[12:17], 2)
+        rs2 = int(instruction[7:12], 2)
+        rd = int(instruction[20:25], 2)
 
         # Signals from the control unit
         Branch, MemRead, MemtoReg, ALUOp, MemWrite, ALUSrc, RegWrite = control_unit(opcode)
@@ -441,10 +283,11 @@ def main():
         pc = PCSrc_MUX(res_pc_adder, res_branch_adder, Branch, Zero)
     
     print("Final Register File")
-    display_register_file_post(start_register_file, register_file)
+    display.register_file_post(start_register_file, register_file)
 
     print("Final Memory")
-    display_memory_post(start_memory, memory)
+    display.memory_post(start_memory, memory)
     
 
-main()
+if __name__ == "__main__":
+    main()

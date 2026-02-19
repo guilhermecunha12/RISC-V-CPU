@@ -171,6 +171,3 @@ def main() -> int:
     # The assembler specifies the intial value of the memory area
     pc = 0x00400000
     return pc
-main()
-
-###
