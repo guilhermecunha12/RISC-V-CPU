@@ -5,7 +5,6 @@ def register_file_pre(register_file: list[int]):
     # Header
     print("-" * 26)
     print("Register Name   Values")
-    print(register_file)
     for reg_i, value in enumerate(register_file):
         # Creates the name of the register, ex: x8
         register_name = "x" + str(reg_i)
