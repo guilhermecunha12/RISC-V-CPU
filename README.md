@@ -83,8 +83,6 @@ python3 cpu.py
 
 This project was developed by:
 
-* Gabriel Magalhães (up202405890)
-* Guilherme Cunha (up202405961)
-* Pedro Pires (up202405967)
-
-
+* Gabriel Magalhães (<up202405890@up.pt>)
+* Guilherme Cunha (<up202405961@up.pt>)
+* Pedro Pires (<up202405967@up.pt>)
